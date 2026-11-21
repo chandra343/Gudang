@@ -637,6 +637,7 @@ export async function receivePOIntoWarehouse(data: {
   imageUrl?: string;
   imageTimestamp?: string;
   notes?: string;
+  receivedDate?: string; // Tanggal & Waktu kedatangan barang (ISO String atau YYYY-MM-DDTHH:mm)
 }) {
   const po = await prisma.purchaseOrder.findUnique({
     where: { id: data.poId },
@@ -655,7 +656,7 @@ export async function receivePOIntoWarehouse(data: {
     throw new Error("Daftar barang pada Purchase Order kosong.");
   }
 
-  const today = new Date();
+  const receiveDate = data.receivedDate ? new Date(data.receivedDate) : new Date();
 
   // Catat setiap item PO menjadi transaksi stok masuk (IN) di gudang terpilih
   for (const item of items) {
@@ -723,7 +724,7 @@ export async function receivePOIntoWarehouse(data: {
         type: "IN",
         quantity: Number(item.quantity),
         unit: item.unit || "pcs",
-        date: today,
+        date: receiveDate,
         imageUrl: data.imageUrl || undefined,
         imageTimestamp: data.imageTimestamp || undefined,
         supplierName: po.supplierName,
@@ -738,7 +739,7 @@ export async function receivePOIntoWarehouse(data: {
     // 3. Update lastInDate pada produk
     await prisma.product.update({
       where: { id: targetProductId },
-      data: { lastInDate: today },
+      data: { lastInDate: receiveDate },
     });
   }
 
@@ -753,7 +754,7 @@ export async function receivePOIntoWarehouse(data: {
     where: { id: data.poId },
     data: {
       status: "RECEIVED",
-      receivedAt: today,
+      receivedAt: receiveDate,
       receivedBy: data.receivedBy,
       receivedWarehouse: warehouseName,
       receiptNotes: data.notes || `Barang PO ${po.poNumber} telah diterima di ${warehouseName} oleh ${data.receivedBy}`,
@@ -762,8 +763,7 @@ export async function receivePOIntoWarehouse(data: {
     },
   });
 
-  // 5. Kirim data & notifikasi langsung ke Sistem Purchasing (http://localhost:3001)
-  // agar tim Purchasing langsung mengetahui bahwa barang sudah sampai di gudang
+  // 5. Kirim data & bukti foto langsung ke Sistem Purchasing (http://localhost:3001)
   const purchasingUrl = process.env.PURCHASING_API_URL || "http://localhost:3001";
   try {
     await fetch(`${purchasingUrl}/api/integration/warehouse/receipt`, {
@@ -772,7 +772,7 @@ export async function receivePOIntoWarehouse(data: {
       body: JSON.stringify({
         poNumber: po.poNumber,
         status: "RECEIVED",
-        receivedAt: today.toISOString(),
+        receivedAt: receiveDate.toISOString(),
         receivedBy: data.receivedBy,
         warehouseId: data.warehouseId,
         warehouseName,
@@ -789,16 +789,22 @@ export async function receivePOIntoWarehouse(data: {
 
   // 6. Notifikasi Telegram ke seluruh Staf Gudang yang terhubung
   try {
+    const itemNamesText = items.map((it: any) => `• *${it.productName}*: ${it.quantity} ${it.unit}`).join("\n");
+    const dateFormatted = receiveDate.toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" });
+    const timeFormatted = receiveDate.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }) + " WIB";
+
     const warehouseReceiptMsg =
-      `📦 *BARANG PO MASUK GUDANG DITERIMA*\n\n` +
+      `📦 *BUKTI PENERIMAAN BARANG PO DI GUDANG*\n\n` +
       `No. PO: *${po.poNumber}*\n` +
       `Vendor: *${po.supplierName}*\n` +
-      `Gudang Tujuan: *${warehouseName}*\n` +
-      `Penerima: *${data.receivedBy}*\n` +
-      `Waktu: ${today.toLocaleString("id-ID")}\n` +
-      `Total Barang: ${items.length} jenis\n` +
-      `Catatan: ${data.notes || "Fisik diverifikasi lengkap"}\n\n` +
-      (data.imageUrl ? `📸 Foto bukti fisik telah terunggah dan disinkronkan ke Purchasing.` : "");
+      `Gudang: *${warehouseName}*\n` +
+      `Petugas Penerima: *${data.receivedBy}*\n` +
+      `📅 *Tanggal Masuk Barang*: *${dateFormatted}*\n` +
+      `🕒 *Jam & Menit*: *${timeFormatted}*\n\n` +
+      `📋 *Rincian Item Diterima:*\n${itemNamesText}\n\n` +
+      (data.imageTimestamp ? `⏱️ *Stempel Waktu Foto*: \`${data.imageTimestamp}\`\n` : "") +
+      (data.imageUrl ? `📸 *Foto Bukti Kedatangan Fisik Terlampir* dan otomatis disinkronkan ke Purchasing.` : "");
+
     await broadcastToWarehouseStaff(warehouseReceiptMsg);
   } catch (err) {
     console.warn("Warehouse Telegram broadcast error:", err);
