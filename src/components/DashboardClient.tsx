@@ -266,16 +266,6 @@ export default function DashboardClient({
   });
   const [isReceivingPo, setIsReceivingPo] = useState<boolean>(false);
   const [copiedApiUrl, setCopiedApiUrl] = useState<boolean>(false);
-  const [showCreatePoModal, setShowCreatePoModal] = useState<boolean>(false);
-  const [newPoForm, setNewPoForm] = useState({
-    supplierName: "",
-    supplierPhone: "",
-    supplierAddress: "",
-    productId: initialData?.products?.[0]?.id || "",
-    quantity: 10,
-    unit: initialData?.products?.[0]?.unit || "pcs",
-    notes: "Pengadaan bahan baku dari Tim Purchasing",
-  });
 
   // Filter & Form States untuk Catatan
   const [noteFilterCategory, setNoteFilterCategory] = useState("all");
@@ -617,43 +607,6 @@ export default function DashboardClient({
       router.refresh();
     } catch (err: any) {
       showMessage("error", err.message || "Gagal mengajukan permintaan pengadaan.");
-    }
-  };
-
-  // Handler Simulasi Terbitkan PO Baru dari Tim Purchasing
-  const handleCreatePOSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const prod = (initialData?.products || []).find((p: ProductWithStock) => p.id === newPoForm.productId);
-    if (!prod) {
-      showMessage("error", "Pilih produk terlebih dahulu.");
-      return;
-    }
-
-    try {
-      const po = await createPurchaseOrder({
-        companyId: initialCompanyId,
-        supplierName: newPoForm.supplierName || prod.supplierName || "PT Vendor Utama",
-        supplierPhone: newPoForm.supplierPhone || prod.supplierPhone || undefined,
-        supplierAddress: newPoForm.supplierAddress || prod.supplierAddress || undefined,
-        notes: newPoForm.notes,
-        items: [
-          {
-            productId: prod.id,
-            productName: prod.name,
-            quantity: Number(newPoForm.quantity),
-            unit: newPoForm.unit || prod.unit,
-          },
-        ],
-      });
-
-      setShowCreatePoModal(false);
-      showMessage(
-        "success",
-        `Purchase Order ${po.poNumber} berhasil diterbitkan dari Purchasing dan siap diterima Gudang!`
-      );
-      router.refresh();
-    } catch (err: any) {
-      showMessage("error", err.message || "Gagal menerbitkan Purchase Order.");
     }
   };
 
@@ -3220,22 +3173,23 @@ export default function DashboardClient({
                     </span>
                   </div>
                   <h2 className="text-lg sm:text-xl font-bold tracking-tight">
-                    Hub Integrasi Sistem Gudang ⇄ Project Purchasing
+                    Penerimaan Barang PO &amp; Kirim Bukti Fisik ke Purchasing
                   </h2>
                   <p className="text-xs text-slate-300 mt-1 max-w-2xl leading-relaxed">
-                    Sistem ini terhubung secara native dengan project Purchasing. Anda dapat menerima Purchase Order (PO) masuk langsung ke stok gudang, atau mengirimkan Permintaan Pengadaan (PR) saat stok barang menipis.
+                    Sistem Gudang bertugas memeriksa barang fisik dari Purchase Order (PO) yang dikirim vendor, mengunggah bukti foto kedatangan bertanggal/jam, lalu mengirimkan konfirmasi penerimaan langsung ke tim Purchasing (Port 3001).
                   </p>
                 </div>
 
                 <div className="flex flex-col sm:flex-row gap-2 shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => setShowCreatePoModal(true)}
-                    className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold px-4 py-2.5 rounded-xl transition flex items-center justify-center gap-2 cursor-pointer shadow-md"
+                  <a
+                    href="http://localhost:3001"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-4 py-2.5 rounded-xl transition flex items-center justify-center gap-2 cursor-pointer shadow-md"
                   >
-                    <Plus className="w-4 h-4" />
-                    <span>+ Terbitkan PO dari Purchasing</span>
-                  </button>
+                    <ExternalLink className="w-4 h-4" />
+                    <span>Buka Portal Purchasing (Port 3001) ↗</span>
+                  </a>
                   <button
                     type="button"
                     onClick={handleAutoSubmitPRFromLowStock}
@@ -3243,7 +3197,7 @@ export default function DashboardClient({
                     className="bg-amber-600 hover:bg-amber-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-semibold px-4 py-2.5 rounded-xl transition flex items-center justify-center gap-2 cursor-pointer shadow-md"
                   >
                     <Send className="w-4 h-4" />
-                    <span>⚡ Kirim PR Otomatis ({lowStockProducts.length} Barang Menipis)</span>
+                    <span>⚡ Kirim PR / Ajukan Restock ({lowStockProducts.length} Barang Menipis)</span>
                   </button>
                 </div>
               </div>
@@ -3342,8 +3296,8 @@ export default function DashboardClient({
                               }}
                               className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-sm transition flex items-center gap-1.5 cursor-pointer shrink-0"
                             >
-                              <PackageCheck className="w-3.5 h-3.5" />
-                              <span>Terima Barang</span>
+                              <Camera className="w-3.5 h-3.5" />
+                              <span>Terima &amp; Kirim Bukti ke Purchasing</span>
                             </button>
                           )}
                         </div>
@@ -4613,10 +4567,10 @@ export default function DashboardClient({
                 </div>
                 <div>
                   <h3 className="font-bold text-slate-900 text-sm">
-                    Penerimaan Barang Masuk (Goods Receipt)
+                    Konfirmasi Barang Diterima &amp; Kirim Bukti ke Purchasing
                   </h3>
                   <p className="text-[11px] text-slate-500">
-                    Konfirmasi kedatangan barang fisik untuk No. PO: <b>{selectedPoForReceive.poNumber}</b>
+                    Verifikasi fisik barang untuk No. PO: <b>{selectedPoForReceive.poNumber}</b> dan kirim bukti foto langsung ke tim Purchasing
                   </p>
                 </div>
               </div>
@@ -4688,144 +4642,14 @@ export default function DashboardClient({
                   {isReceivingPo ? (
                     <>
                       <RefreshCw className="w-4 h-4 animate-spin" />
-                      <span>Menyimpan ke Stok...</span>
+                      <span>Mengirim Bukti ke Purchasing...</span>
                     </>
                   ) : (
                     <>
                       <CheckCircle2 className="w-4 h-4" />
-                      <span>Konfirmasi Barang Masuk ke Gudang</span>
+                      <span>✓ Konfirmasi Barang &amp; Kirim Bukti ke Purchasing</span>
                     </>
                   )}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL SIMULASI TERBITKAN PO BARU DARI PURCHASING */}
-      {showCreatePoModal && (
-        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto space-y-4">
-            <button
-              type="button"
-              onClick={() => setShowCreatePoModal(false)}
-              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 cursor-pointer"
-            >
-              <X className="w-5 h-5" />
-            </button>
-
-            <div className="border-b border-slate-100 pb-3">
-              <div className="flex items-center gap-2">
-                <div className="p-2 bg-indigo-50 text-indigo-600 rounded-xl">
-                  <ShoppingCart className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-slate-900 text-sm">
-                    Terbitkan Purchase Order (PO)
-                  </h3>
-                  <p className="text-[11px] text-slate-500">
-                    Simulasi pengiriman pesanan pembelian dari tim Purchasing ke Gudang
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <form onSubmit={handleCreatePOSubmit} className="space-y-3.5">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Pilih Produk yang Dipesan *
-                </label>
-                <select
-                  value={newPoForm.productId}
-                  onChange={(e) => {
-                    const sel = (initialData?.products || []).find((p: any) => p.id === e.target.value);
-                    setNewPoForm({
-                      ...newPoForm,
-                      productId: e.target.value,
-                      unit: sel?.unit || "pcs",
-                      supplierName: sel?.supplierName || newPoForm.supplierName,
-                      supplierPhone: sel?.supplierPhone || newPoForm.supplierPhone,
-                      supplierAddress: sel?.supplierAddress || newPoForm.supplierAddress,
-                    });
-                  }}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-medium outline-none focus:border-indigo-500"
-                >
-                  {(initialData?.products || []).map((p: any) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name} (Satuan: {p.unit})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Jumlah Pesanan *
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    required
-                    value={newPoForm.quantity}
-                    onChange={(e) => setNewPoForm({ ...newPoForm, quantity: Number(e.target.value) })}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold outline-none focus:border-indigo-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Satuan
-                  </label>
-                  <input
-                    type="text"
-                    disabled
-                    value={newPoForm.unit}
-                    className="w-full bg-slate-100 border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold text-slate-500"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Nama Vendor / Supplier *
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Contoh: PT Chandra Asri, PT Lenovo, dll."
-                  value={newPoForm.supplierName}
-                  onChange={(e) => setNewPoForm({ ...newPoForm, supplierName: e.target.value })}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-medium outline-none focus:border-indigo-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Catatan Pengadaan
-                </label>
-                <textarea
-                  rows={2}
-                  value={newPoForm.notes}
-                  onChange={(e) => setNewPoForm({ ...newPoForm, notes: e.target.value })}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs outline-none focus:border-indigo-500"
-                />
-              </div>
-
-              <div className="pt-2 flex items-center justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setShowCreatePoModal(false)}
-                  className="px-3 py-2 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer"
-                >
-                  Batal
-                </button>
-                <button
-                  type="submit"
-                  className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-xs font-bold shadow-md transition cursor-pointer flex items-center gap-1.5"
-                >
-                  <CheckCircle2 className="w-4 h-4" />
-                  <span>Kirim PO ke Gudang</span>
                 </button>
               </div>
             </form>
