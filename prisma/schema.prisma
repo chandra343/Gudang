@@ -35,18 +35,31 @@ model Company {
 
 // 2. Akun Pengguna & Hak Akses (Login ID Card Karyawan)
 model User {
-  id        String   @id @default(cuid())
-  companyId String
-  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  idCard    String   @unique // Nomor ID Card Karyawan yang diberikan perusahaan
-  name      String
-  email     String?
-  password  String?  @default("")
-  role      String   @default("STAFF")
-  position  String?  @default("Staf Gudang") // Jabatan karyawan
-  avatar    String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id               String   @id @default(cuid())
+  companyId        String
+  company          Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  idCard           String   @unique // Nomor ID Card Karyawan yang diberikan perusahaan
+  name             String
+  email            String?
+  password         String?  @default("")
+  role             String   @default("STAFF")
+  position         String?  @default("Staf Gudang") // Jabatan karyawan
+  avatar           String?
+  telegramChatId   String?  // ID Chat Telegram Pribadi (misal: 123456789)
+  telegramUsername String?  // Username Telegram (@username)
+  telegramEnabled  Boolean  @default(false)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+// Konfigurasi Bot Telegram Gudang & Logistik
+model TelegramConfig {
+  id          String   @id @default("default")
+  botToken    String?  // Token dari @BotFather
+  botUsername String?  // Username bot Telegram
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 // 3. Multi-Gudang

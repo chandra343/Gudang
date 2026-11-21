@@ -2,6 +2,12 @@
 
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import {
+  getTelegramConfig,
+  sendTelegramMessage,
+  broadcastToWarehouseStaff,
+  sendTelegramTestMessage,
+} from "@/lib/telegram";
 
 // 1. Ambil semua perusahaan
 export async function getCompanies() {
@@ -119,6 +125,9 @@ export async function getDashboardData(companyId: string) {
         role: true,
         position: true,
         companyId: true,
+        telegramChatId: true,
+        telegramUsername: true,
+        telegramEnabled: true,
       },
     }),
     prisma.purchaseOrder.findMany({
@@ -163,6 +172,7 @@ export async function getDashboardData(companyId: string) {
     transactions,
     notes,
     users,
+    telegramConfig: await getTelegramConfig(),
     purchaseOrders,
     purchaseRequisitions,
     stats: {
@@ -566,6 +576,9 @@ export async function loginWithIdCard(idCard: string) {
       position: user.position || "Staf Gudang",
       companyId: user.companyId,
       companyName: user.company.name,
+      telegramChatId: user.telegramChatId,
+      telegramUsername: user.telegramUsername,
+      telegramEnabled: user.telegramEnabled,
     },
   };
 }
@@ -774,6 +787,23 @@ export async function receivePOIntoWarehouse(data: {
     console.warn("Purchasing notification:", err?.message || err);
   }
 
+  // 6. Notifikasi Telegram ke seluruh Staf Gudang yang terhubung
+  try {
+    const warehouseReceiptMsg =
+      `📦 *BARANG PO MASUK GUDANG DITERIMA*\n\n` +
+      `No. PO: *${po.poNumber}*\n` +
+      `Vendor: *${po.supplierName}*\n` +
+      `Gudang Tujuan: *${warehouseName}*\n` +
+      `Penerima: *${data.receivedBy}*\n` +
+      `Waktu: ${today.toLocaleString("id-ID")}\n` +
+      `Total Barang: ${items.length} jenis\n` +
+      `Catatan: ${data.notes || "Fisik diverifikasi lengkap"}\n\n` +
+      (data.imageUrl ? `📸 Foto bukti fisik telah terunggah dan disinkronkan ke Purchasing.` : "");
+    await broadcastToWarehouseStaff(warehouseReceiptMsg);
+  } catch (err) {
+    console.warn("Warehouse Telegram broadcast error:", err);
+  }
+
   revalidatePath("/");
   return updatedPo;
 }
@@ -814,6 +844,21 @@ export async function createPurchaseRequisition(data: {
       itemsJson: JSON.stringify(data.items),
     },
   });
+
+  // Notifikasi Telegram ke Staf Gudang
+  try {
+    const prMsg =
+      `📋 *PENGAJUAN RESTOCK (PR) BARU*\n\n` +
+      `No. PR: *${prNumber}*\n` +
+      `Diajukan Oleh: *${data.requestedBy || "Staf Gudang"}*\n` +
+      `Urgensi: *${data.urgency || "NORMAL"}*\n` +
+      `Jumlah Barang: ${data.items.length} jenis item\n` +
+      `Catatan: ${data.notes || "Pengajuan restock gudang"}\n\n` +
+      `Data telah diteruskan ke Sistem Purchasing untuk diterbitkan PO.`;
+    await broadcastToWarehouseStaff(prMsg);
+  } catch (err) {
+    console.warn("PR Telegram broadcast error:", err);
+  }
 
   revalidatePath("/");
   return pr;
@@ -860,4 +905,116 @@ export async function createPurchaseOrder(data: {
 
   revalidatePath("/");
   return po;
+}
+
+// 12. Pengaturan & Koneksi Telegram Staf Gudang (Berdasarkan ID Card)
+export async function updateUserTelegram(
+  idCard: string,
+  data: {
+    telegramChatId?: string;
+    telegramUsername?: string;
+    telegramEnabled: boolean;
+  }
+) {
+  try {
+    const cleanId = idCard.trim().toUpperCase();
+    const user = await prisma.user.findFirst({
+      where: { idCard: cleanId },
+    });
+    if (!user) {
+      return { success: false, error: `Karyawan Gudang dengan ID Card "${idCard}" tidak ditemukan.` };
+    }
+
+    const updated = await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        telegramChatId: data.telegramChatId ? data.telegramChatId.trim() : null,
+        telegramUsername: data.telegramUsername ? data.telegramUsername.trim().replace(/^@/, "") : null,
+        telegramEnabled: Boolean(data.telegramEnabled),
+      },
+    });
+
+    revalidatePath("/");
+    return {
+      success: true,
+      message: "Pengaturan Telegram ID Card Anda berhasil disimpan!",
+      user: {
+        id: updated.id,
+        idCard: updated.idCard,
+        name: updated.name,
+        role: updated.role,
+        position: updated.position,
+        companyId: updated.companyId,
+        telegramChatId: updated.telegramChatId,
+        telegramUsername: updated.telegramUsername,
+        telegramEnabled: updated.telegramEnabled,
+      },
+    };
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+// 13. Pengaturan Global Bot Telegram Perusahaan di Modul Gudang
+export async function updateTelegramBotConfig(data: {
+  botToken?: string;
+  botUsername?: string;
+  isActive: boolean;
+}) {
+  try {
+    const cleanToken = data.botToken ? data.botToken.trim() : null;
+    const cleanUsername = data.botUsername ? data.botUsername.trim().replace(/^@/, "") : null;
+
+    await prisma.telegramConfig.upsert({
+      where: { id: "default" },
+      update: {
+        botToken: cleanToken,
+        botUsername: cleanUsername,
+        isActive: data.isActive,
+      },
+      create: {
+        id: "default",
+        botToken: cleanToken,
+        botUsername: cleanUsername,
+        isActive: data.isActive,
+      },
+    });
+
+    revalidatePath("/");
+    return { success: true, message: "Konfigurasi Bot Telegram Perusahaan berhasil diperbarui!" };
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+// 14. Uji Coba Pengiriman Pesan Notifikasi Telegram ke Staf Gudang
+export async function testUserTelegramNotification(
+  idCard: string,
+  customChatId?: string
+) {
+  try {
+    const cleanId = idCard.trim().toUpperCase();
+    const user = await prisma.user.findFirst({
+      where: { idCard: cleanId },
+    });
+    const name = user ? user.name : `Karyawan (${cleanId})`;
+    const chatId = customChatId ? customChatId.trim() : user?.telegramChatId;
+
+    if (!chatId) {
+      return {
+        success: false,
+        error: "Nomor Chat ID Telegram belum diisi. Masukkan Chat ID Telegram Anda terlebih dahulu.",
+      };
+    }
+
+    const result = await sendTelegramTestMessage(
+      chatId,
+      name,
+      cleanId,
+      "Sistem Gudang & Logistik"
+    );
+    return result;
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
 }

@@ -62,6 +62,22 @@ Aplikasi Gudang siap diakses di: **[http://localhost:3000](http://localhost:3000
 
 ---
 
+## 📱 Integrasi Notifikasi Telegram ID Card
+
+Setiap karyawan dan staf gudang dapat menghubungkan nomor ID Card mereka (misal: `WH-001`, `WH-002`, `WH-003`, `BJ-001`, `BJ-002`) ke akun Telegram masing-masing untuk menerima notifikasi real-time:
+- 📦 **Barang Masuk Gudang**: Konfirmasi penerimaan fisik barang PO beserta pencatatan mutasi stok dan foto bukti.
+- 📋 **Pengajuan Restock (PR)**: Konfirmasi pengajuan kebutuhan barang ke Purchasing.
+- ⚠️ **Peringatan Stok Kritis**: Alert otomatis saat stok barang di bawah batas minimum (*Low Stock Alert*).
+
+### Cara Menghubungkan ID Card ke Telegram:
+1. Buka dashboard Gudang di `http://localhost:3000` dan masuk dengan nomor ID Card Anda.
+2. Klik tombol **📱 Hubungkan Telegram** di bilah atas (atau melalui menu profil ID Card).
+3. Buka Telegram dan cari bot `@userinfobot` untuk mendapatkan **Chat ID** Anda.
+4. Masukkan Chat ID pada modal integrasi, aktifkan centang notifikasi, lalu klik **Simpan Pengaturan ID Card**.
+5. Gunakan tombol **Kirim Pesan Uji Coba** untuk memastikan pesan pengujian masuk ke akun Anda.
+
+---
+
 ## 🔗 Ekosistem Terintegrasi
 
 | Aplikasi | Port | Repository GitHub | Deskripsi |

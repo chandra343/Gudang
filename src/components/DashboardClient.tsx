@@ -15,6 +15,9 @@ import {
   receivePOIntoWarehouse,
   createPurchaseRequisition,
   createPurchaseOrder,
+  updateUserTelegram,
+  updateTelegramBotConfig,
+  testUserTelegramNotification,
 } from "@/app/actions";
 import { ALL_UNITS } from "@/lib/units";
 import BarcodeScannerModal from "./BarcodeScannerModal";
@@ -173,6 +176,9 @@ export interface CurrentUser {
   position: string;
   companyId: string;
   companyName: string;
+  telegramChatId?: string | null;
+  telegramUsername?: string | null;
+  telegramEnabled?: boolean;
 }
 
 interface DashboardClientProps {
@@ -206,6 +212,22 @@ export default function DashboardClient({
     companyId: initialCompanyId || "",
   });
 
+  // Integrasi Notifikasi Telegram ID Card & Bot Perusahaan
+  const [showTelegramModal, setShowTelegramModal] = useState<boolean>(false);
+  const [telegramTab, setTelegramTab] = useState<"staff" | "bot">("staff");
+  const [telegramChatIdInput, setTelegramChatIdInput] = useState<string>("");
+  const [telegramUsernameInput, setTelegramUsernameInput] = useState<string>("");
+  const [telegramEnabledInput, setTelegramEnabledInput] = useState<boolean>(false);
+  const [isSavingTelegram, setIsSavingTelegram] = useState<boolean>(false);
+  const [isTestingTelegram, setIsTestingTelegram] = useState<boolean>(false);
+  const [telegramTestFeedback, setTelegramTestFeedback] = useState<{ success: boolean; msg: string } | null>(null);
+
+  // Konfigurasi Bot Telegram Perusahaan
+  const [botTokenInput, setBotTokenInput] = useState<string>(initialData?.telegramConfig?.botToken || "");
+  const [botUsernameInput, setBotUsernameInput] = useState<string>(initialData?.telegramConfig?.botUsername || "");
+  const [botActiveInput, setBotActiveInput] = useState<boolean>(initialData?.telegramConfig?.isActive ?? true);
+  const [isSavingBotConfig, setIsSavingBotConfig] = useState<boolean>(false);
+
   const userDropdownRef = useRef<HTMLDivElement>(null);
 
   // Cek sesi login tersimpan di browser
@@ -215,7 +237,17 @@ export default function DashboardClient({
       if (saved) {
         const parsed = JSON.parse(saved);
         if (parsed && parsed.idCard && parsed.name) {
-          setCurrentUser(parsed);
+          const fresh = initialData?.users?.find((u: any) => u.idCard === parsed.idCard);
+          if (fresh) {
+            setCurrentUser({
+              ...parsed,
+              telegramChatId: fresh.telegramChatId,
+              telegramUsername: fresh.telegramUsername,
+              telegramEnabled: fresh.telegramEnabled,
+            });
+          } else {
+            setCurrentUser(parsed);
+          }
         }
       }
     } catch (e) {
@@ -475,6 +507,9 @@ export default function DashboardClient({
         position: res.user.position || "Staf Gudang",
         companyId: res.user.companyId,
         companyName: res.user.companyName,
+        telegramChatId: res.user.telegramChatId,
+        telegramUsername: res.user.telegramUsername,
+        telegramEnabled: res.user.telegramEnabled,
       };
 
       setCurrentUser(loggedUser);
@@ -505,6 +540,106 @@ export default function DashboardClient({
       "success",
       "Anda telah berhasil Log Out (Keluar). Silakan masukkan Nomor ID Card untuk masuk kembali."
     );
+  };
+
+  // Handler Buka Modal Telegram
+  const openTelegramModal = () => {
+    if (currentUser) {
+      setTelegramChatIdInput(currentUser.telegramChatId || "");
+      setTelegramUsernameInput(currentUser.telegramUsername || "");
+      setTelegramEnabledInput(Boolean(currentUser.telegramEnabled));
+    }
+    setTelegramTestFeedback(null);
+    setShowTelegramModal(true);
+  };
+
+  // Handler Simpan Telegram User ID Card
+  const handleSaveUserTelegram = async () => {
+    if (!currentUser) return;
+    setIsSavingTelegram(true);
+    setTelegramTestFeedback(null);
+    try {
+      const res = await updateUserTelegram(currentUser.idCard, {
+        telegramChatId: telegramChatIdInput,
+        telegramUsername: telegramUsernameInput,
+        telegramEnabled: telegramEnabledInput,
+      });
+      if (res.success && res.user) {
+        const updated: CurrentUser = {
+          ...currentUser,
+          telegramChatId: res.user.telegramChatId,
+          telegramUsername: res.user.telegramUsername,
+          telegramEnabled: res.user.telegramEnabled,
+        };
+        setCurrentUser(updated);
+        localStorage.setItem("gudang_logged_in_user", JSON.stringify(updated));
+        showMessage("success", res.message || "Pengaturan Telegram ID Card berhasil disimpan!");
+      } else {
+        showMessage("error", res.error || "Gagal menyimpan pengaturan Telegram.");
+      }
+    } catch (err: any) {
+      showMessage("error", err.message || "Terjadi kesalahan.");
+    } finally {
+      setIsSavingTelegram(false);
+    }
+  };
+
+  // Handler Uji Coba Pengiriman Pesan Telegram
+  const handleTestUserTelegram = async () => {
+    if (!currentUser) return;
+    const targetChatId = telegramChatIdInput.trim() || currentUser.telegramChatId;
+    if (!targetChatId) {
+      setTelegramTestFeedback({
+        success: false,
+        msg: "Nomor Chat ID Telegram belum diisi. Masukkan Chat ID akun Anda terlebih dahulu.",
+      });
+      return;
+    }
+    setIsTestingTelegram(true);
+    setTelegramTestFeedback(null);
+    try {
+      const res = await testUserTelegramNotification(currentUser.idCard, targetChatId);
+      if (res.success) {
+        setTelegramTestFeedback({
+          success: true,
+          msg: `✓ Pesan uji coba berhasil dikirim ke Chat ID: ${targetChatId}! Periksa aplikasi Telegram Anda.`,
+        });
+        showMessage("success", "Pesan uji coba Telegram berhasil terkirim!");
+      } else {
+        setTelegramTestFeedback({
+          success: false,
+          msg: `Gagal mengirim: ${res.error || "Periksa kembali Chat ID dan token bot Anda."}`,
+        });
+      }
+    } catch (err: any) {
+      setTelegramTestFeedback({
+        success: false,
+        msg: err.message || "Gagal menghubungi server Telegram.",
+      });
+    } finally {
+      setIsTestingTelegram(false);
+    }
+  };
+
+  // Handler Simpan Konfigurasi Bot Perusahaan di Gudang
+  const handleSaveBotConfig = async () => {
+    setIsSavingBotConfig(true);
+    try {
+      const res = await updateTelegramBotConfig({
+        botToken: botTokenInput,
+        botUsername: botUsernameInput,
+        isActive: botActiveInput,
+      });
+      if (res.success) {
+        showMessage("success", "Konfigurasi Bot Telegram Perusahaan berhasil disimpan!");
+      } else {
+        showMessage("error", res.error || "Gagal menyimpan konfigurasi Bot.");
+      }
+    } catch (err: any) {
+      showMessage("error", err.message || "Terjadi kesalahan.");
+    } finally {
+      setIsSavingBotConfig(false);
+    }
   };
 
   // Handler Mendaftarkan ID Card Karyawan Baru oleh Perusahaan
@@ -1649,6 +1784,37 @@ export default function DashboardClient({
               </select>
             </div>
 
+            {/* Pill Integrasi Telegram ID Card Gudang */}
+            {currentUser && (
+              <button
+                type="button"
+                onClick={openTelegramModal}
+                className={`inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition shadow-xs border ${
+                  currentUser.telegramEnabled && currentUser.telegramChatId
+                    ? "bg-sky-50 hover:bg-sky-100 border-sky-300 text-sky-900"
+                    : "bg-white hover:bg-slate-50 border-slate-200 text-slate-700"
+                }`}
+                title={`Koneksi Notifikasi Telegram untuk ID Card: ${currentUser.idCard}`}
+              >
+                <Send
+                  className={`w-3.5 h-3.5 shrink-0 ${
+                    currentUser.telegramEnabled && currentUser.telegramChatId ? "text-sky-600" : "text-slate-400"
+                  }`}
+                />
+                <span className="hidden lg:inline">Telegram:</span>
+                <span className="font-mono font-bold">{currentUser.idCard}</span>
+                {currentUser.telegramEnabled && currentUser.telegramChatId ? (
+                  <span className="text-[10px] bg-sky-200 text-sky-900 font-bold px-1.5 py-0.5 rounded">
+                    Aktif
+                  </span>
+                ) : (
+                  <span className="text-[10px] bg-amber-100 text-amber-800 font-bold px-1.5 py-0.5 rounded">
+                    Hubungkan
+                  </span>
+                )}
+              </button>
+            )}
+
             {/* Profil Nama Karyawan & Menu Log Out (ID Card Karyawan) */}
             {currentUser && (
               <div className="relative" ref={userDropdownRef}>
@@ -1697,9 +1863,33 @@ export default function DashboardClient({
                           {currentUser.companyName || initialData?.company?.name}
                         </span>
                       </div>
+                      <div className="mt-1 flex items-center justify-between text-[11px]">
+                        <span className="text-slate-500">Status Telegram:</span>
+                        <span
+                          className={`font-semibold px-1.5 py-0.5 rounded text-[10px] ${
+                            currentUser.telegramEnabled && currentUser.telegramChatId
+                              ? "bg-sky-100 text-sky-800"
+                              : "bg-slate-200 text-slate-600"
+                          }`}
+                        >
+                          {currentUser.telegramEnabled && currentUser.telegramChatId ? "Terhubung" : "Belum Aktif"}
+                        </span>
+                      </div>
                     </div>
 
                     <div className="px-2 pt-1.5 space-y-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowUserDropdown(false);
+                          openTelegramModal();
+                        }}
+                        className="w-full flex items-center gap-2 px-3 py-1.5 text-xs font-semibold text-sky-700 hover:bg-sky-50 rounded-lg transition-colors cursor-pointer text-left"
+                      >
+                        <Send className="w-4 h-4 text-sky-600 shrink-0" />
+                        <span>Koneksi Telegram ({currentUser.idCard})</span>
+                      </button>
+
                       <button
                         type="button"
                         onClick={() => {
@@ -4659,6 +4849,295 @@ export default function DashboardClient({
 
       {/* Modal Terbitkan ID Card Baru (Saat di dalam Dashboard) */}
       {showRegisterUserModal && renderRegisterEmployeeModal()}
+
+      {/* MODAL INTEGRASI TELEGRAM ID CARD GUDANG & BOT NOTIFIKASI */}
+      {showTelegramModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-xl w-full p-6 shadow-2xl relative max-h-[92vh] overflow-y-auto space-y-5 animate-scaleUp">
+            <button
+              type="button"
+              onClick={() => setShowTelegramModal(false)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-700 cursor-pointer p-1 rounded-lg hover:bg-slate-100 transition"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            {/* Header Modal */}
+            <div className="flex items-start gap-3.5 border-b border-slate-100 pb-4">
+              <div className="w-12 h-12 rounded-2xl bg-sky-500 text-white flex items-center justify-center shrink-0 shadow-md shadow-sky-500/20">
+                <Send className="w-6 h-6" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-bold bg-sky-100 text-sky-800 px-2.5 py-0.5 rounded-full uppercase tracking-wider">
+                    Telegram Integration
+                  </span>
+                  <span className="text-[10px] font-mono text-slate-500">Real-time Alert</span>
+                </div>
+                <h3 className="text-lg font-black text-slate-900 mt-1">
+                  Koneksi Notifikasi Telegram ID Card Gudang
+                </h3>
+                <p className="text-xs text-slate-500">
+                  Hubungkan nomor ID Card karyawan gudang ke akun Telegram untuk menerima alert otomatis kedatangan barang PO, pengajuan restock PR, dan notifikasi operasional gudang.
+                </p>
+              </div>
+            </div>
+
+            {/* Navigation Tab Modal */}
+            <div className="flex border-b border-slate-200">
+              <button
+                type="button"
+                onClick={() => setTelegramTab("staff")}
+                className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 cursor-pointer transition ${
+                  telegramTab === "staff"
+                    ? "border-sky-600 text-sky-700 bg-sky-50/50"
+                    : "border-transparent text-slate-500 hover:text-slate-800"
+                }`}
+              >
+                <UserCheck className="w-4 h-4" />
+                <span>ID Card Saya ({currentUser?.idCard || "Karyawan"})</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setTelegramTab("bot")}
+                className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 cursor-pointer transition ${
+                  telegramTab === "bot"
+                    ? "border-sky-600 text-sky-700 bg-sky-50/50"
+                    : "border-transparent text-slate-500 hover:text-slate-800"
+                }`}
+              >
+                <Building2 className="w-4 h-4" />
+                <span>Pengaturan Bot Perusahaan</span>
+              </button>
+            </div>
+
+            {/* TAB 1: Hubungkan Telegram ke ID Card Karyawan Gudang */}
+            {telegramTab === "staff" && (
+              <div className="space-y-4">
+                {currentUser ? (
+                  <div className="p-3.5 bg-sky-50/60 border border-sky-100 rounded-xl flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold text-sm">
+                        {currentUser.name.charAt(0)}
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-slate-900">{currentUser.name}</p>
+                        <p className="text-[11px] text-slate-500">{currentUser.position || "Staf Gudang"}</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-[10px] text-slate-400 block">ID Card</span>
+                      <span className="font-mono font-bold bg-white border border-indigo-200 text-indigo-700 px-2 py-0.5 rounded text-xs">
+                        {currentUser.idCard}
+                      </span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-xs">
+                    Silakan login terlebih dahulu dengan nomor ID Card Anda untuk menghubungkan akun Telegram.
+                  </div>
+                )}
+
+                {/* Form Input Staf Telegram */}
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-800 mb-1">
+                      Telegram Chat ID Pribadi <span className="text-rose-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={telegramChatIdInput}
+                        onChange={(e) => setTelegramChatIdInput(e.target.value)}
+                        placeholder="Contoh: 123456789"
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-mono focus:bg-white focus:ring-2 focus:ring-sky-500 outline-none transition"
+                      />
+                    </div>
+                    <p className="text-[11px] text-slate-500 mt-1">
+                      Chat ID adalah nomor identitas unik akun Telegram Anda (bukan nomor HP).
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-800 mb-1">
+                      Username Telegram (Opsional)
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-2 text-slate-400 text-xs">@</span>
+                      <input
+                        type="text"
+                        value={telegramUsernameInput}
+                        onChange={(e) => setTelegramUsernameInput(e.target.value)}
+                        placeholder="username_anda"
+                        className="w-full pl-7 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs focus:bg-white focus:ring-2 focus:ring-sky-500 outline-none transition"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="pt-1">
+                    <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={telegramEnabledInput}
+                        onChange={(e) => setTelegramEnabledInput(e.target.checked)}
+                        className="w-4 h-4 text-sky-600 rounded border-slate-300 focus:ring-sky-500"
+                      />
+                      <span className="text-xs font-semibold text-slate-800">
+                        Aktifkan Notifikasi Telegram Real-Time untuk ID Card ini
+                      </span>
+                    </label>
+                  </div>
+                </div>
+
+                {/* Panduan Cara Mendapatkan Chat ID */}
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-2 text-xs">
+                  <div className="flex items-center gap-1.5 font-bold text-slate-800">
+                    <Sparkles className="w-4 h-4 text-sky-500" />
+                    <span>Cara Cepat Mengetahui Telegram Chat ID Anda:</span>
+                  </div>
+                  <ol className="list-decimal list-inside text-slate-600 space-y-1 text-[11px] pl-1">
+                    <li>Buka aplikasi Telegram di HP atau Komputer Anda.</li>
+                    <li>
+                      Cari bot info gratis: ketik <b>@userinfobot</b> pada kolom pencarian Telegram.
+                    </li>
+                    <li>
+                      Kirim pesan atau klik tombol <b>/start</b> pada bot tersebut.
+                    </li>
+                    <li>
+                      Bot akan membalas dengan menampilkan <b>Id: (nomor Chat ID Anda)</b>.
+                    </li>
+                    <li>Salin nomor tersebut lalu tempel pada kolom Chat ID di atas.</li>
+                  </ol>
+                </div>
+
+                {/* Feedback Uji Coba */}
+                {telegramTestFeedback && (
+                  <div
+                    className={`p-3 rounded-xl text-xs font-medium border ${
+                      telegramTestFeedback.success
+                        ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+                        : "bg-rose-50 text-rose-800 border-rose-200"
+                    }`}
+                  >
+                    {telegramTestFeedback.msg}
+                  </div>
+                )}
+
+                {/* Tombol Aksi */}
+                <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={handleTestUserTelegram}
+                    disabled={isTestingTelegram || !currentUser}
+                    className="inline-flex items-center gap-1.5 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg cursor-pointer transition disabled:opacity-50"
+                  >
+                    <Send className="w-3.5 h-3.5 text-sky-600" />
+                    <span>{isTestingTelegram ? "Mengirim..." : "Kirim Pesan Uji Coba"}</span>
+                  </button>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowTelegramModal(false)}
+                      className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg cursor-pointer transition"
+                    >
+                      Batal
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleSaveUserTelegram}
+                      disabled={isSavingTelegram || !currentUser}
+                      className="inline-flex items-center gap-1.5 px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold rounded-lg shadow-sm cursor-pointer transition disabled:opacity-50"
+                    >
+                      <CheckCircle2 className="w-4 h-4" />
+                      <span>{isSavingTelegram ? "Menyimpan..." : "Simpan Pengaturan ID Card"}</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* TAB 2: Konfigurasi Bot Telegram Perusahaan */}
+            {telegramTab === "bot" && (
+              <div className="space-y-4">
+                <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-600 space-y-1">
+                  <p className="font-bold text-slate-800">🤖 Konfigurasi Bot Telegram Resmi Gudang &amp; Logistik</p>
+                  <p className="text-[11px]">
+                    Bot Token digunakan oleh server sistem gudang untuk mengirimkan notifikasi resmi ke akun Telegram karyawan. Anda bisa membuat bot Telegram gratis melalui <b>@BotFather</b> di Telegram.
+                  </p>
+                </div>
+
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-800 mb-1">
+                      Telegram Bot Token (dari @BotFather)
+                    </label>
+                    <input
+                      type="password"
+                      value={botTokenInput}
+                      onChange={(e) => setBotTokenInput(e.target.value)}
+                      placeholder="Contoh: 7123456789:AAHxxxxx_xxxxxxxxxxxxxxx"
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-mono focus:bg-white focus:ring-2 focus:ring-sky-500 outline-none transition"
+                    />
+                    <p className="text-[10px] text-slate-400 mt-1">
+                      Token tersimpan aman di database dan juga mendukung fallback otomatis ke environment variable <code>TELEGRAM_BOT_TOKEN</code>.
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-800 mb-1">
+                      Username Bot Telegram
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-2 text-slate-400 text-xs">@</span>
+                      <input
+                        type="text"
+                        value={botUsernameInput}
+                        onChange={(e) => setBotUsernameInput(e.target.value)}
+                        placeholder="Contoh: GudangLogistikBot"
+                        className="w-full pl-7 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs focus:bg-white focus:ring-2 focus:ring-sky-500 outline-none transition"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="pt-1">
+                    <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={botActiveInput}
+                        onChange={(e) => setBotActiveInput(e.target.checked)}
+                        className="w-4 h-4 text-sky-600 rounded border-slate-300 focus:ring-sky-500"
+                      />
+                      <span className="text-xs font-semibold text-slate-800">
+                        Aktifkan Layanan Notifikasi Bot Telegram Perusahaan
+                      </span>
+                    </label>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => setShowTelegramModal(false)}
+                    className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg cursor-pointer transition"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSaveBotConfig}
+                    disabled={isSavingBotConfig}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 bg-slate-900 hover:bg-black text-white text-xs font-bold rounded-lg shadow-sm cursor-pointer transition disabled:opacity-50"
+                  >
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>{isSavingBotConfig ? "Menyimpan..." : "Simpan Konfigurasi Bot"}</span>
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* DATALIST AUTO-DETECT PERUSAHAAN/RETAIL */}
       <datalist id="known-suppliers-datalist">
