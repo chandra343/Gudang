@@ -38,6 +38,7 @@ import LocationMapEmbed from "./LocationMapEmbed";
 import NineRouterModal from "./NineRouterModal";
 import NineRouterChatbot from "./NineRouterChatbot";
 import DashboardCustomizerModal from "./DashboardCustomizerModal";
+import DashboardErrorBoundary from "./DashboardErrorBoundary";
 import {
   Building2,
   Package,
@@ -2114,7 +2115,13 @@ export default function DashboardClient({
         </div>
       </header>
 
-      {/* Main Content */}
+      {/* Main Content (Terlindung Error Boundary & Safe-Mode Restore Default Per User) */}
+      <DashboardErrorBoundary
+        userIdCard={currentUser?.idCard}
+        userName={currentUser?.name}
+        resetKey={`${currentUser?.idCard || "guest"}-${currentUser?.dashboardConfigJson || "default"}`}
+        onRestoreDefault={handleResetDashboardPrefs}
+      >
       <main className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
         {/* Active Company Banner */}
         {dashboardPrefs.showBanner && (initialData?.company ? (
@@ -3924,6 +3931,7 @@ export default function DashboardClient({
           </div>
         )}
       </main>
+      </DashboardErrorBoundary>
 
       {/* MODAL 1: TAMBAH PRODUK KE KATALOG DENGAN UPLOAD FOTO TIMESTAMP */}
       {showAddProductModal && (
