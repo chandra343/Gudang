@@ -34,7 +34,7 @@ export default function GudangErrorPage({
       // Abaikan jika localStorage kosong
     } finally {
       setIsRecovering(false);
-      window.location.href = "/";
+      reset();
     }
   };
 
