@@ -84,3 +84,22 @@ Setiap karyawan dan staf gudang dapat menghubungkan nomor ID Card mereka (misal:
 | :--- | :--- | :--- | :--- |
 | **Gudang Web (WMS)** | `3000` | [chandra343/Gudang](https://github.com/chandra343/Gudang) | Manajemen Stok Fisik & Penerimaan Barang |
 | **Purchasing Web** | `3001` | [chandra343/Purchasing](https://github.com/chandra343/Purchasing) | Platform Pengadaan, Komparasi Vendor & PO |
+| **9Router AI Gateway** | `20128` | [`9router/`](./9router) (fork `Azhar457/9router`) | Pusat AI Gateway & Bridge OpenAI-Compatible |
+
+---
+
+## 🤖 Integrasi 9Router AI Gateway (`9router/`)
+
+Project ini menyertakan **9Router AI Gateway** di subfolder [`9router/`](./9router) dan endpoint bridge siap pakai agar terhubung dengan Gudang, Purchasing, maupun project lain di masa mendatang:
+
+### Menjalankan 9Router AI Gateway:
+```bash
+pnpm router:install
+pnpm router:dev
+```
+Dashboard 9Router berjalan di: **`http://localhost:20128`** (API OpenAI-compatible di **`http://localhost:20128/v1`**).
+
+### Endpoint Bridge AI Gudang (CORS-Enabled):
+- `GET http://localhost:3000/api/ai/status` — Cek status koneksi & kesehatan 9Router.
+- `GET http://localhost:3000/api/ai/models` — Daftar model AI yang tersedia di 9Router.
+- `POST http://localhost:3000/api/ai/chat` — Endpoint inferensi/chat AI terhubung langsung ke 9Router.

@@ -44,3 +44,17 @@ yarn-error.log*
 next-env.d.ts
 
 /src/generated/prisma
+
+# 9router subfolder runtime, build & env
+/9router/node_modules/
+/9router/.next/
+/9router/.next-cli-build/
+/9router/.env*
+!/9router/.env.example
+/9router/data/
+/9router/*.db
+/9router/*.db-journal
+/9router/logs/
+/9router/*.tgz
+/9router/*.tsbuildinfo
+/9router/next-env.d.ts

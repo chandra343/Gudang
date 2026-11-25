@@ -8,6 +8,12 @@ import {
   broadcastToWarehouseStaff,
   sendTelegramTestMessage,
 } from "@/lib/telegram";
+import {
+  checkNineRouterHealth,
+  getNineRouterConfigDto,
+  getRawNineRouterConfig,
+  normalizeNineRouterUrls,
+} from "@/lib/nineRouter";
 
 // 1. Ambil semua perusahaan
 export async function getCompanies() {
@@ -173,6 +179,7 @@ export async function getDashboardData(companyId: string) {
     notes,
     users,
     telegramConfig: await getTelegramConfig(),
+    nineRouterConfig: await getNineRouterConfigDto(),
     purchaseOrders,
     purchaseRequisitions,
     stats: {
@@ -1023,4 +1030,64 @@ export async function testUserTelegramNotification(
   } catch (err: any) {
     return { success: false, error: err.message };
   }
+}
+
+// 15. Pengaturan & Verifikasi Koneksi 9Router AI Gateway (Gudang)
+export async function saveNineRouterConfig(data: {
+  baseUrl: string;
+  apiKey?: string;
+  clearApiKey?: boolean;
+  defaultModel?: string;
+  isEnabled: boolean;
+  notes?: string;
+}) {
+  try {
+    const existing = await getRawNineRouterConfig();
+    const { apiV1Url } = normalizeNineRouterUrls(data.baseUrl);
+    const nextApiKey = data.clearApiKey
+      ? null
+      : data.apiKey?.trim()
+        ? data.apiKey.trim()
+        : existing.apiKey;
+
+    await prisma.nineRouterConfig.upsert({
+      where: { id: "default" },
+      update: {
+        baseUrl: apiV1Url,
+        apiKey: nextApiKey,
+        defaultModel: data.defaultModel?.trim() || null,
+        isEnabled: Boolean(data.isEnabled),
+        notes: data.notes?.trim() || null,
+      },
+      create: {
+        id: "default",
+        baseUrl: apiV1Url,
+        apiKey: nextApiKey,
+        defaultModel: data.defaultModel?.trim() || null,
+        isEnabled: Boolean(data.isEnabled),
+        notes: data.notes?.trim() || null,
+      },
+    });
+
+    const config = await getNineRouterConfigDto();
+    revalidatePath("/");
+    return {
+      success: true,
+      message: "Konfigurasi 9Router AI Gateway berhasil disimpan!",
+      config,
+    };
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+export async function testNineRouterConnection(data?: {
+  baseUrl?: string;
+  apiKey?: string;
+}) {
+  return await checkNineRouterHealth({
+    baseUrl: data?.baseUrl,
+    apiKey: data?.apiKey,
+    persistStatus: !data?.baseUrl,
+  });
 }
