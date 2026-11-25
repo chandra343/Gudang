@@ -26,6 +26,7 @@ import BarcodeScannerModal from "./BarcodeScannerModal";
 import ImageTimestampUploader from "./ImageTimestampUploader";
 import LocationMapEmbed from "./LocationMapEmbed";
 import NineRouterModal from "./NineRouterModal";
+import NineRouterChatbot from "./NineRouterChatbot";
 import {
   Building2,
   Package,
@@ -254,6 +255,36 @@ export default function DashboardClient({
       })
       .catch(() => {});
   }, []);
+
+  // Ringkasan konteks live Gudang untuk Chatbot AI 9Router
+  const chatbotContextSummary = useMemo(() => {
+    const companyName = initialData?.company?.name || "Perusahaan Gudang";
+    const warehousesText = (initialData?.warehouses || [])
+      .map((w: any) => `${w.name} (${w.code})`)
+      .join(", ");
+    const productsSummary = (initialData?.products || [])
+      .slice(0, 25)
+      .map((p: ProductWithStock) => {
+        const total = p.stocks.reduce((a, b) => a + b.quantity, 0);
+        return `- ${p.name}: ${total} ${p.unit} (min: ${p.minStock}, supplier: ${p.supplierName || "-"})`;
+      })
+      .join("\n");
+    const pendingPOs = (initialData?.purchaseOrders || [])
+      .filter((po: any) => po.status !== "RECEIVED")
+      .slice(0, 10)
+      .map((po: any) => `- ${po.poNumber} dari ${po.supplierName} (${po.status})`)
+      .join("\n");
+
+    return [
+      `Perusahaan: ${companyName}`,
+      `Gudang aktif: ${warehousesText || "-"}`,
+      `Statistik: ${initialData?.stats?.totalProducts || 0} jenis barang, ${initialData?.stats?.totalStockCount || 0} total unit, ${initialData?.stats?.lowStockCount || 0} stok menipis`,
+      productsSummary ? `Daftar Barang:\n${productsSummary}` : "",
+      pendingPOs ? `PO Menunggu Masuk Gudang:\n${pendingPOs}` : "Tidak ada PO menunggu masuk.",
+    ]
+      .filter(Boolean)
+      .join("\n");
+  }, [initialData]);
 
   const userDropdownRef = useRef<HTMLDivElement>(null);
 
@@ -5258,6 +5289,20 @@ export default function DashboardClient({
         onSaveConfigAction={saveNineRouterConfig}
         onTestConnectionAction={testNineRouterConnection}
         onToast={showMessage}
+      />
+
+      {/* CHATBOT AI TERHUBUNG KE 9ROUTER (POJOK KANAN BAWAH) */}
+      <NineRouterChatbot
+        projectLabel="Gudang (WMS)"
+        isConnected={nineRouterStatus.connected}
+        defaultModel={initialData?.nineRouterConfig?.defaultModel}
+        contextSummary={chatbotContextSummary}
+        quickPrompts={[
+          "Apa saja barang yang stoknya kritis atau menipis?",
+          "Buatkan ringkasan kondisi stok & PO yang akan masuk hari ini.",
+          "Siapa vendor penyedia produk plastik atau kabel di gudang?",
+        ]}
+        onOpenSettings={() => setShowNineRouterModal(true)}
       />
 
       {/* DATALIST AUTO-DETECT PERUSAHAAN/RETAIL */}
