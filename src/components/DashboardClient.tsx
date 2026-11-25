@@ -1772,23 +1772,34 @@ export default function DashboardClient({
       )}
 
       {/* Top Header */}
-      <header className="sticky top-0 z-30 bg-white border-b border-slate-200 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="bg-indigo-600 text-white p-2 rounded-xl shadow-md flex items-center justify-center">
-              <Warehouse className="w-6 h-6" />
+      <header className="sticky top-0 z-30 bg-white border-b border-slate-200 shadow-2xs">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5 shrink-0">
+            <div className="bg-indigo-600 text-white p-1.5 rounded-lg shadow-xs flex items-center justify-center">
+              <Warehouse className="w-5 h-5" />
             </div>
-            <div>
-              <span className="font-bold text-lg text-slate-900 tracking-tight flex items-center gap-1.5">
-                Gudang <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full font-medium">SaaS Multi-Company</span>
-              </span>
-              <p className="text-xs text-slate-500 hidden sm:block">Sistem Manajemen Stok & Inventaris Perusahaan</p>
-            </div>
+            <span className="font-bold text-base text-slate-900 tracking-tight whitespace-nowrap">
+              Gudang
+            </span>
           </div>
 
-          {/* Tenant Switcher & Auto-Detect Controls */}
-          <div className="flex items-center gap-2">
-            {/* Tombol Toggle Auto-Detect */}
+          {/* Right Controls — ringkas 1 baris */}
+          <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center bg-slate-100 rounded-lg px-2 py-1 border border-slate-200 max-w-[170px] sm:max-w-[220px]">
+              <Building2 className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+              <select
+                value={initialCompanyId}
+                onChange={(e) => handleCompanyChange(e.target.value)}
+                className="bg-transparent text-xs font-semibold text-slate-800 pl-1.5 pr-1 py-0.5 outline-none cursor-pointer truncate w-full"
+              >
+                {initialCompanies.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
             <button
               type="button"
               onClick={() => {
@@ -1801,129 +1812,78 @@ export default function DashboardClient({
                     : "Auto-Detect Dimatikan: Data hanya diperbarui saat tombol refresh ditekan."
                 );
               }}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border cursor-pointer ${
-                autoRefresh
-                  ? "bg-emerald-50 text-emerald-700 border-emerald-300 hover:bg-emerald-100 shadow-xs"
-                  : "bg-slate-100 text-slate-500 border-slate-300 hover:bg-slate-200"
-              }`}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 cursor-pointer whitespace-nowrap transition"
               title={
                 autoRefresh
-                  ? "Auto-Detect AKTIF: Otomatis memeriksa & memperbarui saat ada data baru dari perangkat/tab manapun"
-                  : "Auto-Detect MATI: Klik untuk mengaktifkan deteksi otomatis"
+                  ? "Sinkronisasi Otomatis AKTIF (setiap 3 detik)"
+                  : "Sinkronisasi Otomatis MATI"
               }
             >
-              <span className="relative flex h-2 w-2">
-                {autoRefresh && (
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                )}
-                <span
-                  className={`relative inline-flex rounded-full h-2 w-2 ${
-                    autoRefresh ? "bg-emerald-500" : "bg-slate-400"
-                  }`}
-                ></span>
-              </span>
-              <span className="hidden sm:inline">Auto-Detect:</span>
-              <span>{autoRefresh ? "ON" : "OFF"}</span>
+              <span
+                className={`w-2 h-2 rounded-full shrink-0 ${
+                  autoRefresh ? "bg-emerald-500" : "bg-slate-300"
+                }`}
+              />
+              <span className="hidden sm:inline">{autoRefresh ? "Live" : "Manual"}</span>
               {isSyncing && autoRefresh && (
-                <RefreshCw className="w-3 h-3 animate-spin text-emerald-600 ml-0.5" />
+                <RefreshCw className="w-3 h-3 animate-spin text-emerald-600" />
               )}
             </button>
 
-            <div className="relative flex items-center bg-slate-100 rounded-lg p-1 border border-slate-200">
-              <Building2 className="w-4 h-4 ml-2 text-slate-500" />
-              <select
-                value={initialCompanyId}
-                onChange={(e) => handleCompanyChange(e.target.value)}
-                className="bg-transparent text-sm font-semibold text-slate-800 px-2 py-1 outline-none cursor-pointer"
-              >
-                {initialCompanies.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name} ({c.plan})
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Pill Integrasi 9Router AI Gateway */}
             <button
               type="button"
               onClick={() => setShowNineRouterModal(true)}
-              className={`inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition shadow-xs border ${
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 cursor-pointer whitespace-nowrap transition"
+              title={
                 nineRouterStatus.connected
-                  ? "bg-violet-50 hover:bg-violet-100 border-violet-300 text-violet-900"
-                  : "bg-white hover:bg-slate-50 border-slate-200 text-slate-700"
-              }`}
-              title="Pengaturan & Status 9Router AI Gateway (Port 20128)"
+                  ? "9Router AI Gateway: Terhubung (Port 20128)"
+                  : "9Router AI Gateway: Klik untuk menghubungkan"
+              }
             >
-              <Cpu
-                className={`w-3.5 h-3.5 shrink-0 ${
-                  nineRouterStatus.connected ? "text-violet-600" : "text-slate-400"
+              <Cpu className="w-3.5 h-3.5 text-violet-600 shrink-0" />
+              <span className="hidden md:inline">9Router</span>
+              <span
+                className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                  nineRouterStatus.connected ? "bg-emerald-500" : "bg-amber-400"
                 }`}
               />
-              <span className="hidden lg:inline">9Router AI</span>
-              {nineRouterStatus.connected ? (
-                <span className="text-[10px] bg-violet-200 text-violet-900 font-bold px-1.5 py-0.5 rounded">
-                  Aktif
-                </span>
-              ) : (
-                <span className="text-[10px] bg-amber-100 text-amber-800 font-bold px-1.5 py-0.5 rounded">
-                  Hubungkan
-                </span>
-              )}
             </button>
 
-            {/* Pill Integrasi Telegram ID Card Gudang */}
             {currentUser && (
               <button
                 type="button"
                 onClick={openTelegramModal}
-                className={`inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition shadow-xs border ${
-                  currentUser.telegramEnabled && currentUser.telegramChatId
-                    ? "bg-sky-50 hover:bg-sky-100 border-sky-300 text-sky-900"
-                    : "bg-white hover:bg-slate-50 border-slate-200 text-slate-700"
+                className="hidden md:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 cursor-pointer whitespace-nowrap transition"
+                title={`Telegram (${currentUser.idCard}): ${
+                  currentUser.telegramEnabled && currentUser.telegramChatId ? "Aktif" : "Belum terhubung"
                 }`}
-                title={`Koneksi Notifikasi Telegram untuk ID Card: ${currentUser.idCard}`}
               >
-                <Send
-                  className={`w-3.5 h-3.5 shrink-0 ${
-                    currentUser.telegramEnabled && currentUser.telegramChatId ? "text-sky-600" : "text-slate-400"
+                <Send className="w-3.5 h-3.5 text-sky-600 shrink-0" />
+                <span>Telegram</span>
+                <span
+                  className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                    currentUser.telegramEnabled && currentUser.telegramChatId ? "bg-emerald-500" : "bg-amber-400"
                   }`}
                 />
-                <span className="hidden lg:inline">Telegram:</span>
-                <span className="font-mono font-bold">{currentUser.idCard}</span>
-                {currentUser.telegramEnabled && currentUser.telegramChatId ? (
-                  <span className="text-[10px] bg-sky-200 text-sky-900 font-bold px-1.5 py-0.5 rounded">
-                    Aktif
-                  </span>
-                ) : (
-                  <span className="text-[10px] bg-amber-100 text-amber-800 font-bold px-1.5 py-0.5 rounded">
-                    Hubungkan
-                  </span>
-                )}
               </button>
             )}
 
-            {/* Profil Nama Karyawan & Menu Log Out (ID Card Karyawan) */}
+            {/* Profil Nama Karyawan & Menu Dropdown */}
             {currentUser && (
               <div className="relative" ref={userDropdownRef}>
                 <button
                   type="button"
                   onClick={() => setShowUserDropdown((prev) => !prev)}
-                  className="flex items-center gap-2 bg-white hover:bg-slate-50 border border-slate-200 pl-2 pr-3 py-1.5 rounded-lg shadow-xs transition-all cursor-pointer focus:ring-2 focus:ring-indigo-500/20"
-                  title="Klik nama Anda untuk info profil atau Log Out"
+                  className="flex items-center gap-2 bg-white hover:bg-slate-50 border border-slate-200 pl-1.5 pr-2.5 py-1 rounded-lg transition-all cursor-pointer whitespace-nowrap"
+                  title={`${currentUser.name} (ID: ${currentUser.idCard})`}
                 >
-                  <div className="w-6 h-6 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-xs uppercase shadow-xs">
+                  <div className="w-6 h-6 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-xs uppercase shrink-0">
                     {currentUser.name.charAt(0)}
                   </div>
-                  <div className="text-left hidden sm:block">
-                    <span className="block text-xs font-bold text-slate-800 leading-tight">
-                      {currentUser.name}
-                    </span>
-                    <span className="text-[10px] text-slate-500 font-medium font-mono">
-                      ID: {currentUser.idCard}
-                    </span>
-                  </div>
-                  <ChevronDown className="w-3.5 h-3.5 text-slate-400 ml-0.5" />
+                  <span className="text-xs font-semibold text-slate-800 hidden sm:inline max-w-[120px] truncate">
+                    {currentUser.name}
+                  </span>
+                  <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                 </button>
 
                 {/* Dropdown Menu Nama User & Log Out */}
@@ -1976,6 +1936,18 @@ export default function DashboardClient({
                       >
                         <Send className="w-4 h-4 text-sky-600 shrink-0" />
                         <span>Koneksi Telegram ({currentUser.idCard})</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowUserDropdown(false);
+                          setShowNineRouterModal(true);
+                        }}
+                        className="w-full flex items-center gap-2 px-3 py-1.5 text-xs font-semibold text-violet-700 hover:bg-violet-50 rounded-lg transition-colors cursor-pointer text-left"
+                      >
+                        <Cpu className="w-4 h-4 text-violet-600 shrink-0" />
+                        <span>Pengaturan 9Router AI</span>
                       </button>
 
                       <button
