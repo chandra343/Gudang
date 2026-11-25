@@ -1773,7 +1773,7 @@ export default function DashboardClient({
 
       {/* Top Header */}
       <header className="sticky top-0 z-30 bg-white border-b border-slate-200 shadow-2xs">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between gap-3">
+        <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between gap-3">
           <div className="flex items-center gap-2.5 shrink-0">
             <div className="bg-indigo-600 text-white p-1.5 rounded-lg shadow-xs flex items-center justify-center">
               <Warehouse className="w-5 h-5" />
@@ -1980,7 +1980,7 @@ export default function DashboardClient({
       </header>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+      <main className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
         {/* Active Company Banner */}
         {initialData?.company ? (
           <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white p-5 rounded-2xl shadow-lg flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -2211,10 +2211,10 @@ export default function DashboardClient({
                 </div>
               </div>
 
-              {/* Grid 4 Kolom Filter Utama */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              {/* Grid Filter Utama yang Proporsional */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3">
                 {/* 1. Filter Nama Barang */}
-                <div>
+                <div className="lg:col-span-3">
                   <label className="block text-[11px] font-bold text-slate-700 mb-1 flex items-center gap-1">
                     <Package className="w-3.5 h-3.5 text-indigo-600" />
                     <span>Nama Barang</span>
@@ -2241,7 +2241,7 @@ export default function DashboardClient({
                 </div>
 
                 {/* 2. Filter Kode Barcode */}
-                <div>
+                <div className="lg:col-span-2">
                   <div className="flex items-center justify-between mb-1">
                     <label className="text-[11px] font-bold text-slate-700 flex items-center gap-1">
                       <BarcodeIcon className="w-3.5 h-3.5 text-indigo-600" />
@@ -2260,7 +2260,7 @@ export default function DashboardClient({
                   <div className="relative">
                     <input
                       type="text"
-                      placeholder="Ketik atau scan barcode..."
+                      placeholder="Ketik / scan barcode..."
                       value={filterBarcode}
                       onChange={(e) => setFilterBarcode(e.target.value)}
                       className="w-full bg-white border border-slate-300 rounded-lg pl-3 pr-7 py-2 text-xs outline-none focus:border-indigo-500 font-mono shadow-2xs"
@@ -2279,7 +2279,7 @@ export default function DashboardClient({
                 </div>
 
                 {/* 3. Filter Nama Perusahaan / Retail Tempat Pembelian */}
-                <div>
+                <div className="lg:col-span-3">
                   <label className="block text-[11px] font-bold text-slate-700 mb-1 flex items-center gap-1">
                     <Store className="w-3.5 h-3.5 text-indigo-600" />
                     <span>Nama Perusahaan / Retail</span>
@@ -2312,7 +2312,7 @@ export default function DashboardClient({
                 </div>
 
                 {/* 4. Filter Tanggal (Rentang Tanggal & Tipe Tanggal) */}
-                <div>
+                <div className="lg:col-span-4">
                   <div className="flex items-center justify-between mb-1">
                     <label className="text-[11px] font-bold text-slate-700 flex items-center gap-1">
                       <Calendar className="w-3.5 h-3.5 text-indigo-600" />
@@ -2355,19 +2355,19 @@ export default function DashboardClient({
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-1.5">
+                  <div className="grid grid-cols-2 gap-2">
                     <input
                       type="date"
                       value={filterStartDate}
                       onChange={(e) => setFilterStartDate(e.target.value)}
-                      className="w-full bg-white border border-slate-300 rounded-lg px-2 py-1.5 text-[11px] outline-none focus:border-indigo-500 shadow-2xs font-medium"
+                      className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-2 text-xs outline-none focus:border-indigo-500 shadow-2xs font-medium"
                       title="Tanggal Mulai"
                     />
                     <input
                       type="date"
                       value={filterEndDate}
                       onChange={(e) => setFilterEndDate(e.target.value)}
-                      className="w-full bg-white border border-slate-300 rounded-lg px-2 py-1.5 text-[11px] outline-none focus:border-indigo-500 shadow-2xs font-medium"
+                      className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-2 text-xs outline-none focus:border-indigo-500 shadow-2xs font-medium"
                       title="Tanggal Akhir"
                     />
                   </div>
@@ -2379,27 +2379,25 @@ export default function DashboardClient({
               <table className="w-full text-left text-xs sm:text-sm">
                 <thead className="bg-slate-50 text-slate-600 uppercase text-[11px] font-semibold tracking-wider border-b border-slate-200">
                   <tr>
-                    <th className="px-4 py-3">Foto / Bukti</th>
-                    <th className="px-4 py-3">Nama Produk & Barcode</th>
-                    <th className="px-4 py-3">Kategori</th>
-                    <th className="px-4 py-3">Satuan</th>
-                    <th className="px-4 py-3 bg-emerald-50/40 text-emerald-900">
+                    <th className="px-4 py-3 whitespace-nowrap w-16">Foto</th>
+                    <th className="px-3 py-3 min-w-[200px]">Nama Produk &amp; Kategori</th>
+                    <th className="px-3 py-3 whitespace-nowrap bg-emerald-50/40 text-emerald-900">
                       <div className="flex items-center gap-1">
                         <Calendar className="w-3.5 h-3.5 text-emerald-600" />
-                        <span>Tanggal Masuk</span>
+                        <span>Tgl Masuk</span>
                       </div>
                     </th>
-                    <th className="px-4 py-3 bg-rose-50/40 text-rose-900">
+                    <th className="px-3 py-3 whitespace-nowrap bg-rose-50/40 text-rose-900">
                       <div className="flex items-center gap-1">
                         <Calendar className="w-3.5 h-3.5 text-rose-600" />
-                        <span>Tanggal Keluar</span>
+                        <span>Tgl Keluar</span>
                       </div>
                     </th>
-                    <th className="px-4 py-3">Tempat Beli (Retail / Maps / WA)</th>
-                    <th className="px-4 py-3">Stok Tiap Gudang</th>
-                    <th className="px-4 py-3">Total Stok</th>
-                    <th className="px-4 py-3">Status</th>
-                    <th className="px-4 py-3 text-right">Aksi</th>
+                    <th className="px-3 py-3 min-w-[250px]">Tempat Beli (Maps / WA)</th>
+                    <th className="px-3 py-3 min-w-[155px]">Stok Gudang</th>
+                    <th className="px-3 py-3 whitespace-nowrap text-right">Total Stok</th>
+                    <th className="px-3 py-3 whitespace-nowrap text-center">Status</th>
+                    <th className="px-4 py-3 whitespace-nowrap text-right">Aksi</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -2409,7 +2407,7 @@ export default function DashboardClient({
 
                     return (
                       <tr key={p.id} className="hover:bg-slate-50/70 transition-colors">
-                        <td className="px-4 py-3">
+                        <td className="px-4 py-3 whitespace-nowrap">
                           {p.imageUrl ? (
                             <button
                               type="button"
@@ -2433,45 +2431,40 @@ export default function DashboardClient({
                             </div>
                           )}
                         </td>
-                        <td className="px-4 py-3">
-                          <div className="font-semibold text-slate-900">{p.name}</div>
-                          {p.barcode ? (
-                            <div className="text-[11px] text-slate-500 flex items-center gap-1 font-mono mt-0.5">
-                              <BarcodeIcon className="w-3 h-3 text-slate-400" />
-                              <span>{p.barcode}</span>
-                            </div>
-                          ) : (
-                            <span className="text-[10px] text-slate-400 italic">Tanpa barcode</span>
-                          )}
+                        <td className="px-3 py-3">
+                          <div className="font-semibold text-slate-900 leading-snug">{p.name}</div>
+                          <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                            <span className="bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded text-[10px] font-medium whitespace-nowrap">
+                              {p.category?.name || "Umum"}
+                            </span>
+                            {p.barcode ? (
+                              <span className="text-[11px] text-slate-500 flex items-center gap-1 font-mono whitespace-nowrap">
+                                <BarcodeIcon className="w-3 h-3 text-slate-400" />
+                                <span>{p.barcode}</span>
+                              </span>
+                            ) : (
+                              <span className="text-[10px] text-slate-400 italic">Tanpa barcode</span>
+                            )}
+                          </div>
                           {p.imageTimestamp && (
-                            <div className="text-[10px] text-emerald-700 font-mono flex items-center gap-1 mt-0.5">
+                            <div className="text-[10px] text-emerald-700 font-mono flex items-center gap-1 mt-1 whitespace-nowrap">
                               <Clock className="w-3 h-3 text-emerald-500" />
                               <span>{p.imageTimestamp}</span>
                             </div>
                           )}
                         </td>
-                        <td className="px-4 py-3 text-slate-600">
-                          <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-[11px]">
-                            {p.category?.name || "Umum"}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 font-semibold text-indigo-700">
-                          <span className="uppercase text-xs bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded">
-                            {p.unit}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 bg-emerald-50/20 text-slate-700 font-medium">
+                        <td className="px-3 py-3 bg-emerald-50/20 text-slate-700 font-medium whitespace-nowrap text-xs">
                           {formatDate(p.lastInDate)}
                         </td>
-                        <td className="px-4 py-3 bg-rose-50/20 text-slate-700 font-medium">
+                        <td className="px-3 py-3 bg-rose-50/20 text-slate-700 font-medium whitespace-nowrap text-xs">
                           {formatDate(p.lastOutDate)}
                         </td>
-                        <td className="px-4 py-3 text-xs min-w-[200px]">
+                        <td className="px-3 py-3 text-xs min-w-[250px]">
                           {p.supplierName ? (
                             <div className="space-y-1">
                               <div className="font-bold text-slate-900 flex items-center gap-1.5">
                                 <Store className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
-                                <span className="truncate max-w-[190px]">{p.supplierName}</span>
+                                <span className="truncate max-w-[240px]" title={p.supplierName}>{p.supplierName}</span>
                               </div>
                               <div className="flex flex-wrap items-center gap-1 pt-0.5">
                                 {p.supplierWhatsapp && (
@@ -2479,7 +2472,7 @@ export default function DashboardClient({
                                     href={`https://wa.me/${p.supplierWhatsapp.replace(/[^0-9]/g, "").startsWith("0") ? "62" + p.supplierWhatsapp.replace(/[^0-9]/g, "").slice(1) : p.supplierWhatsapp.replace(/[^0-9]/g, "")}`}
                                     target="_blank"
                                     rel="noreferrer"
-                                    className="inline-flex items-center gap-1 text-[10px] bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 px-1.5 py-0.5 rounded font-semibold transition-colors"
+                                    className="inline-flex items-center gap-1 text-[10px] bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 px-1.5 py-0.5 rounded font-semibold transition-colors whitespace-nowrap"
                                     title="Chat WhatsApp"
                                   >
                                     <MessageCircle className="w-3 h-3 text-emerald-600" />
@@ -2489,7 +2482,7 @@ export default function DashboardClient({
                                 {p.supplierPhone && (
                                   <a
                                     href={`tel:${p.supplierPhone}`}
-                                    className="inline-flex items-center gap-1 text-[10px] bg-slate-100 hover:bg-slate-200 text-slate-700 px-1.5 py-0.5 rounded transition-colors"
+                                    className="inline-flex items-center gap-1 text-[10px] bg-slate-100 hover:bg-slate-200 text-slate-700 px-1.5 py-0.5 rounded transition-colors whitespace-nowrap"
                                     title="Telepon"
                                   >
                                     <Phone className="w-3 h-3 text-slate-500" />
@@ -2510,13 +2503,13 @@ export default function DashboardClient({
                                           whatsapp: p.supplierWhatsapp,
                                         })
                                       }
-                                      className="flex items-center gap-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 px-2 py-1 rounded-lg text-[11px] font-semibold transition-all shadow-2xs cursor-pointer group flex-1 text-left"
+                                      className="flex items-center gap-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 px-2 py-1 rounded-lg text-[11px] font-semibold transition-all shadow-2xs cursor-pointer group flex-1 text-left min-w-0"
                                       title="Klik untuk membuka peta ukuran penuh"
                                     >
                                       <MapPin className="w-3.5 h-3.5 text-rose-600 group-hover:scale-110 transition-transform shrink-0" />
-                                      <span className="truncate max-w-[110px]">{p.supplierAddress}</span>
-                                      <span className="ml-auto text-[10px] bg-rose-200 text-rose-900 px-1 py-0.2 rounded font-bold shrink-0">
-                                        Peta 🗺️
+                                      <span className="truncate">{p.supplierAddress}</span>
+                                      <span className="ml-auto text-[10px] bg-rose-200 text-rose-900 px-1.5 py-0.2 rounded font-bold shrink-0">
+                                        Peta
                                       </span>
                                     </button>
 
@@ -2525,7 +2518,7 @@ export default function DashboardClient({
                                       onClick={() =>
                                         setExpandedMapProductId(expandedMapProductId === p.id ? null : p.id)
                                       }
-                                      className={`px-1.5 py-1 rounded-lg text-[10px] font-semibold border transition-colors cursor-pointer shrink-0 ${
+                                      className={`px-2 py-1 rounded-lg text-[10px] font-semibold border transition-colors cursor-pointer shrink-0 ${
                                         expandedMapProductId === p.id
                                           ? "bg-slate-900 text-white border-slate-900"
                                           : "bg-slate-50 hover:bg-slate-100 text-slate-600 border-slate-200"
@@ -2561,15 +2554,15 @@ export default function DashboardClient({
                             <span className="text-slate-400 italic text-[11px]">Belum diisi</span>
                           )}
                         </td>
-                        <td className="px-4 py-3">
-                          <div className="flex flex-wrap gap-1.5">
+                        <td className="px-3 py-3">
+                          <div className="flex flex-col gap-1 items-start">
                             {p.stocks.length === 0 ? (
                               <span className="text-slate-400 text-xs">Kosong</span>
                             ) : (
                               p.stocks.map((s) => (
                                 <span
                                   key={s.id}
-                                  className="text-[11px] bg-slate-100 border border-slate-200 rounded px-1.5 py-0.5 text-slate-700"
+                                  className="text-[11px] bg-slate-100 border border-slate-200 rounded px-2 py-0.5 text-slate-700 whitespace-nowrap"
                                 >
                                   {s.warehouse.code}: <b>{s.quantity}</b> {p.unit}
                                 </span>
@@ -2577,16 +2570,16 @@ export default function DashboardClient({
                             )}
                           </div>
                         </td>
-                        <td className="px-4 py-3 font-bold text-slate-900">
+                        <td className="px-3 py-3 font-bold text-slate-900 whitespace-nowrap text-right">
                           {totalQty} <span className="text-xs font-normal text-slate-500">{p.unit}</span>
                         </td>
-                        <td className="px-4 py-3">
+                        <td className="px-3 py-3 text-center whitespace-nowrap">
                           {isLow ? (
-                            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-rose-700 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-full">
+                            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-rose-700 bg-rose-50 border border-rose-200 px-2.5 py-0.5 rounded-full">
                               <AlertTriangle className="w-3 h-3" /> Stok Menipis (&le;{p.minStock})
                             </span>
                           ) : (
-                            <span className="inline-flex items-center text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+                            <span className="inline-flex items-center text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full">
                               Aman
                             </span>
                           )}
@@ -2615,7 +2608,7 @@ export default function DashboardClient({
                   })}
                   {filteredProducts.length === 0 && (
                     <tr>
-                      <td colSpan={11} className="text-center py-8 text-slate-400 text-sm">
+                      <td colSpan={9} className="text-center py-8 text-slate-400 text-sm">
                         Tidak ada barang yang cocok dengan pencarian Anda.
                       </td>
                     </tr>
