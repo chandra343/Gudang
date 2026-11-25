@@ -14,6 +14,7 @@ import {
   getRawNineRouterConfig,
   normalizeNineRouterUrls,
 } from "@/lib/nineRouter";
+import { DEFAULT_GUDANG_PREFS, parseGudangPrefs } from "@/lib/dashboardPrefs";
 
 // 1. Ambil semua perusahaan
 export async function getCompanies() {
@@ -134,6 +135,7 @@ export async function getDashboardData(companyId: string) {
         telegramChatId: true,
         telegramUsername: true,
         telegramEnabled: true,
+        dashboardConfigJson: true,
       },
     }),
     prisma.purchaseOrder.findMany({
@@ -586,6 +588,7 @@ export async function loginWithIdCard(idCard: string) {
       telegramChatId: user.telegramChatId,
       telegramUsername: user.telegramUsername,
       telegramEnabled: user.telegramEnabled,
+      dashboardConfigJson: user.dashboardConfigJson || null,
     },
   };
 }
@@ -1090,4 +1093,59 @@ export async function testNineRouterConnection(data?: {
     apiKey: data?.apiKey,
     persistStatus: !data?.baseUrl,
   });
+}
+
+// 16. Personalisasi & Restore Default Dashboard Khusus Per User (Berdasarkan ID Card)
+export async function saveUserDashboardPrefs(idCard: string, prefsJson: string) {
+  try {
+    const cleanId = idCard.trim().toUpperCase();
+    const user = await prisma.user.findFirst({ where: { idCard: cleanId } });
+    if (!user) {
+      return { success: false, error: `Akun dengan ID Card "${idCard}" tidak ditemukan.` };
+    }
+    const normalized = parseGudangPrefs(prefsJson);
+    const serialized = JSON.stringify(normalized);
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { dashboardConfigJson: serialized },
+    });
+    revalidatePath("/");
+    return {
+      success: true,
+      message: `Tampilan dashboard khusus akun ${user.name} (${cleanId}) berhasil disimpan!`,
+      dashboardConfigJson: serialized,
+      prefs: normalized,
+    };
+  } catch (err: unknown) {
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "Gagal menyimpan preferensi tampilan.",
+    };
+  }
+}
+
+export async function resetUserDashboardPrefs(idCard: string) {
+  try {
+    const cleanId = idCard.trim().toUpperCase();
+    const user = await prisma.user.findFirst({ where: { idCard: cleanId } });
+    if (!user) {
+      return { success: false, error: `Akun dengan ID Card "${idCard}" tidak ditemukan.` };
+    }
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { dashboardConfigJson: null },
+    });
+    revalidatePath("/");
+    return {
+      success: true,
+      message: `Tampilan dashboard akun ${user.name} (${cleanId}) telah dikembalikan ke Default!`,
+      dashboardConfigJson: null,
+      prefs: DEFAULT_GUDANG_PREFS,
+    };
+  } catch (err: unknown) {
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "Gagal mengembalikan tampilan default.",
+    };
+  }
 }
