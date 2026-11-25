@@ -27,6 +27,8 @@ import {
   DEFAULT_GUDANG_PREFS,
   GudangDashboardPrefs,
   GudangStatKey,
+  GudangThemeColor,
+  getDashboardBackgroundStyle,
   getGudangBannerClass,
   isGudangPrefsCustomized,
   parseGudangPrefs,
@@ -36,7 +38,7 @@ import BarcodeScannerModal from "./BarcodeScannerModal";
 import ImageTimestampUploader from "./ImageTimestampUploader";
 import LocationMapEmbed from "./LocationMapEmbed";
 import NineRouterModal from "./NineRouterModal";
-import NineRouterChatbot from "./NineRouterChatbot";
+import NineRouterChatbot, { ChatbotDashboardAction } from "./NineRouterChatbot";
 import DashboardCustomizerModal from "./DashboardCustomizerModal";
 import DashboardErrorBoundary from "./DashboardErrorBoundary";
 import {
@@ -263,6 +265,10 @@ export default function DashboardClient({
   );
   const isDashboardCustomized = useMemo(
     () => isGudangPrefsCustomized(dashboardPrefs),
+    [dashboardPrefs]
+  );
+  const bgStyle = useMemo(
+    () => getDashboardBackgroundStyle(dashboardPrefs),
     [dashboardPrefs]
   );
 
@@ -690,6 +696,46 @@ export default function DashboardClient({
     }
     showMessage("error", res.error || "Gagal mengembalikan tampilan default.");
     return false;
+  };
+
+  const handleChatbotDashboardAction = async (
+    action: ChatbotDashboardAction
+  ): Promise<{ success: boolean; message?: string }> => {
+    if (action.type === "OPEN_CUSTOMIZER") {
+      setShowCustomizerModal(true);
+      return { success: true, message: "Panel Pengaturan Background & Tampilan dibuka" };
+    }
+    if (action.type === "RESET_DEFAULT") {
+      const ok = await handleResetDashboardPrefs();
+      return {
+        success: ok,
+        message: ok
+          ? "Background & tampilan dikembalikan ke Default"
+          : "Gagal mengembalikan ke Default",
+      };
+    }
+    const patch = action.patch || {};
+    const validBannerThemes = new Set<GudangThemeColor>(["indigo", "emerald", "slate", "violet"]);
+    const nextPrefs: GudangDashboardPrefs = {
+      ...dashboardPrefs,
+      ...(patch.bgPreset !== undefined ? { bgPreset: patch.bgPreset, bgImageData: patch.bgPreset === "custom" ? dashboardPrefs.bgImageData : "" } : {}),
+      ...(patch.bgCustomColor !== undefined ? { bgCustomColor: patch.bgCustomColor, bgImageData: "" } : {}),
+      ...(patch.bgOverlayOpacity !== undefined ? { bgOverlayOpacity: patch.bgOverlayOpacity } : {}),
+      ...(patch.themeColor && validBannerThemes.has(patch.themeColor as GudangThemeColor)
+        ? { themeColor: patch.themeColor as GudangThemeColor }
+        : {}),
+      ...(patch.compactTable !== undefined ? { compactTable: patch.compactTable } : {}),
+      ...(patch.showBanner !== undefined ? { showBanner: patch.showBanner } : {}),
+      ...(patch.showStats !== undefined ? { showStats: patch.showStats } : {}),
+      ...(patch.showFilterPanel !== undefined ? { showFilterPanel: patch.showFilterPanel } : {}),
+    };
+    const ok = await handleSaveDashboardPrefs(nextPrefs);
+    return {
+      success: ok,
+      message: ok
+        ? `Tampilan (${nextPrefs.bgPreset}) diterapkan untuk akun ${currentUser?.name || "Anda"}`
+        : "Gagal menerapkan tampilan dashboard",
+    };
   };
 
   // Handler Buka Modal Telegram
@@ -1634,7 +1680,24 @@ export default function DashboardClient({
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-800">
+    <div
+      className={`min-h-screen relative transition-colors duration-300 ${bgStyle.containerClass}`}
+      style={bgStyle.containerStyle}
+    >
+      {bgStyle.safeImageUrl && (
+        <div
+          aria-hidden="true"
+          className="fixed inset-0 pointer-events-none z-0 bg-cover bg-center"
+          style={{ backgroundImage: `url("${bgStyle.safeImageUrl}")` }}
+        />
+      )}
+      {bgStyle.safeImageUrl && (
+        <div
+          aria-hidden="true"
+          className="fixed inset-0 pointer-events-none z-0 bg-slate-950"
+          style={{ opacity: bgStyle.overlayOpacity }}
+        />
+      )}
       {/* NOTIFIKASI OTOMATIS: PERINGATAN STOK MENIPIS DI ATAS KIRI (Setiap Masuk Website) */}
       {showLowStockAlert && lowStockProducts.length > 0 && (
         <div className="fixed top-4 left-4 z-[60] max-w-sm sm:max-w-md w-[calc(100vw-2rem)] bg-white/95 backdrop-blur-md border border-rose-200 border-l-4 border-l-rose-500 rounded-2xl p-4 shadow-2xl transition-all duration-300 animate-in slide-in-from-top-4 fade-in">
@@ -2131,7 +2194,7 @@ export default function DashboardClient({
         resetKey={`${currentUser?.idCard || "guest"}-${currentUser?.dashboardConfigJson || "default"}`}
         onRestoreDefault={handleResetDashboardPrefs}
       >
-      <main className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+      <main className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 relative z-10">
         {/* Active Company Banner */}
         {dashboardPrefs.showBanner && (initialData?.company ? (
           <div className={`bg-gradient-to-r ${getGudangBannerClass(dashboardPrefs.themeColor)} text-white p-5 rounded-2xl shadow-lg flex flex-col md:flex-row md:items-center justify-between gap-4`}>
@@ -2344,7 +2407,13 @@ export default function DashboardClient({
         )}
 
         {/* Tab Navigation */}
-        <div className="flex items-center gap-1 border-b border-slate-200 overflow-x-auto pb-1 text-sm font-medium">
+        <div
+          className={`flex items-center gap-1 overflow-x-auto pb-1 text-sm font-medium ${
+            bgStyle.isCustomBg
+              ? "bg-white/95 backdrop-blur-xs rounded-xl px-2 pt-1.5 border border-slate-200/80 shadow-xs"
+              : "border-b border-slate-200"
+          }`}
+        >
           <button
             type="button"
             onClick={() => setActiveTab("inventory")}
@@ -5503,12 +5572,17 @@ export default function DashboardClient({
           isConnected={nineRouterStatus.connected}
           defaultModel={initialData?.nineRouterConfig?.defaultModel}
           contextSummary={chatbotContextSummary}
+          currentPrefs={{
+            bgPreset: dashboardPrefs.bgPreset,
+            themeColor: dashboardPrefs.themeColor,
+          }}
           quickPrompts={[
             "Apa saja barang yang stoknya kritis atau menipis?",
             "Buatkan ringkasan kondisi stok & PO yang akan masuk hari ini.",
-            "Siapa vendor penyedia produk plastik atau kabel di gudang?",
+            "Ganti background dashboard menjadi gelap untuk akun saya",
           ]}
           onOpenSettings={() => setShowNineRouterModal(true)}
+          onApplyDashboardAction={handleChatbotDashboardAction}
         />
       )}
 
