@@ -22,6 +22,7 @@ import {
   testNineRouterConnection,
   saveUserDashboardPrefs,
   resetUserDashboardPrefs,
+  logoutUserSession,
 } from "@/app/actions";
 import {
   DEFAULT_GUDANG_PREFS,
@@ -651,6 +652,7 @@ export default function DashboardClient({
 
   // Handler Log Out (Keluar)
   const handleLogout = () => {
+    void logoutUserSession();
     setCurrentUser(null);
     setShowUserDropdown(false);
     setActiveTab(DEFAULT_GUDANG_PREFS.defaultTab);
@@ -676,6 +678,9 @@ export default function DashboardClient({
       showMessage("success", res.message || "Tampilan dashboard Anda berhasil disimpan!");
       return true;
     }
+    if ((res as { requiresRelogin?: boolean }).requiresRelogin) {
+      handleLogout();
+    }
     showMessage("error", res.error || "Gagal menyimpan tampilan dashboard.");
     return false;
   };
@@ -694,6 +699,9 @@ export default function DashboardClient({
       showMessage("success", res.message || "Tampilan dashboard dikembalikan ke Default!");
       return true;
     }
+    if ((res as { requiresRelogin?: boolean }).requiresRelogin) {
+      handleLogout();
+    }
     showMessage("error", res.error || "Gagal mengembalikan tampilan default.");
     return false;
   };
@@ -701,17 +709,26 @@ export default function DashboardClient({
   const handleChatbotDashboardAction = async (
     action: ChatbotDashboardAction
   ): Promise<{ success: boolean; message?: string }> => {
+    if (!currentUser?.idCard) {
+      return {
+        success: false,
+        message: "Akses dibatasi: Anda harus login dengan ID Card untuk mengubah dashboard pribadi.",
+      };
+    }
     if (action.type === "OPEN_CUSTOMIZER") {
       setShowCustomizerModal(true);
-      return { success: true, message: "Panel Pengaturan Background & Tampilan dibuka" };
+      return {
+        success: true,
+        message: `Panel Pengaturan Background & Tampilan dibuka (${currentUser.idCard})`,
+      };
     }
     if (action.type === "RESET_DEFAULT") {
       const ok = await handleResetDashboardPrefs();
       return {
         success: ok,
         message: ok
-          ? "Background & tampilan dikembalikan ke Default"
-          : "Gagal mengembalikan ke Default",
+          ? `Background & tampilan akun ${currentUser.idCard} dikembalikan ke Default`
+          : "Gagal mengembalikan ke Default (silakan masuk ulang dengan ID Card bila diminta)",
       };
     }
     const patch = action.patch || {};
@@ -733,8 +750,8 @@ export default function DashboardClient({
     return {
       success: ok,
       message: ok
-        ? `Tampilan (${nextPrefs.bgPreset}) diterapkan untuk akun ${currentUser?.name || "Anda"}`
-        : "Gagal menerapkan tampilan dashboard",
+        ? `Tampilan (${nextPrefs.bgPreset}) diterapkan untuk akun ${currentUser.name} (${currentUser.idCard})`
+        : "Gagal menerapkan tampilan dashboard (silakan masuk ulang dengan ID Card bila diminta)",
     };
   };
 
@@ -5571,6 +5588,9 @@ export default function DashboardClient({
           projectLabel="Gudang (WMS)"
           isConnected={nineRouterStatus.connected}
           defaultModel={initialData?.nineRouterConfig?.defaultModel}
+          userIdCard={currentUser?.idCard}
+          userName={currentUser?.name}
+          userRole={currentUser?.role}
           contextSummary={chatbotContextSummary}
           currentPrefs={{
             bgPreset: dashboardPrefs.bgPreset,

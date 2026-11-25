@@ -15,6 +15,37 @@ import {
   normalizeNineRouterUrls,
 } from "@/lib/nineRouter";
 import { DEFAULT_GUDANG_PREFS, parseGudangPrefs } from "@/lib/dashboardPrefs";
+import {
+  clearUserSessionCookie,
+  getVerifiedUserSession,
+  setUserSessionCookie,
+} from "@/lib/session";
+
+async function assertSelfUserSession(requestedIdCard: string) {
+  const session = await getVerifiedUserSession();
+  if (!session) {
+    return {
+      ok: false as const,
+      requiresRelogin: true,
+      error:
+        "Sesi keamanan login Anda belum terverifikasi. Silakan Log Out lalu masuk kembali dengan ID Card Anda.",
+    };
+  }
+  const cleanRequested = requestedIdCard.trim().toUpperCase();
+  if (cleanRequested && cleanRequested !== session.idCard) {
+    return {
+      ok: false as const,
+      requiresRelogin: false,
+      error: `Akses dibatasi: Anda login sebagai ${session.idCard} dan hanya berwenang mengubah dashboard akun Anda sendiri.`,
+    };
+  }
+  return { ok: true as const, session };
+}
+
+export async function logoutUserSession() {
+  await clearUserSessionCookie();
+  return { success: true };
+}
 
 // 1. Ambil semua perusahaan
 export async function getCompanies() {
@@ -575,6 +606,12 @@ export async function loginWithIdCard(idCard: string) {
     };
   }
 
+  await setUserSessionCookie({
+    idCard: user.idCard,
+    userId: user.id,
+    role: user.role,
+  });
+
   return {
     success: true,
     user: {
@@ -933,9 +970,12 @@ export async function updateUserTelegram(
   }
 ) {
   try {
-    const cleanId = idCard.trim().toUpperCase();
-    const user = await prisma.user.findFirst({
-      where: { idCard: cleanId },
+    const auth = await assertSelfUserSession(idCard);
+    if (!auth.ok) {
+      return { success: false, requiresRelogin: auth.requiresRelogin, error: auth.error };
+    }
+    const user = await prisma.user.findUnique({
+      where: { id: auth.session.userId },
     });
     if (!user) {
       return { success: false, error: `Karyawan Gudang dengan ID Card "${idCard}" tidak ditemukan.` };
@@ -1107,10 +1147,14 @@ export async function testNineRouterConnection(data?: {
 // 16. Personalisasi & Restore Default Dashboard Khusus Per User (Berdasarkan ID Card)
 export async function saveUserDashboardPrefs(idCard: string, prefsJson: string) {
   try {
-    const cleanId = idCard.trim().toUpperCase();
-    const user = await prisma.user.findFirst({ where: { idCard: cleanId } });
+    const auth = await assertSelfUserSession(idCard);
+    if (!auth.ok) {
+      return { success: false, requiresRelogin: auth.requiresRelogin, error: auth.error };
+    }
+    const cleanId = auth.session.idCard;
+    const user = await prisma.user.findUnique({ where: { id: auth.session.userId } });
     if (!user) {
-      return { success: false, error: `Akun dengan ID Card "${idCard}" tidak ditemukan.` };
+      return { success: false, error: `Akun dengan ID Card "${cleanId}" tidak ditemukan.` };
     }
     const normalized = parseGudangPrefs(prefsJson);
     const serialized = JSON.stringify(normalized);
@@ -1135,10 +1179,14 @@ export async function saveUserDashboardPrefs(idCard: string, prefsJson: string) 
 
 export async function resetUserDashboardPrefs(idCard: string) {
   try {
-    const cleanId = idCard.trim().toUpperCase();
-    const user = await prisma.user.findFirst({ where: { idCard: cleanId } });
+    const auth = await assertSelfUserSession(idCard);
+    if (!auth.ok) {
+      return { success: false, requiresRelogin: auth.requiresRelogin, error: auth.error };
+    }
+    const cleanId = auth.session.idCard;
+    const user = await prisma.user.findUnique({ where: { id: auth.session.userId } });
     if (!user) {
-      return { success: false, error: `Akun dengan ID Card "${idCard}" tidak ditemukan.` };
+      return { success: false, error: `Akun dengan ID Card "${cleanId}" tidak ditemukan.` };
     }
     await prisma.user.update({
       where: { id: user.id },

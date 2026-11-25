@@ -1,24 +1,40 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getVerifiedUserSession } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest) {
   try {
-    const body = (await request.json().catch(() => ({}))) as { idCard?: string };
-    const cleanId = body?.idCard?.trim().toUpperCase();
-
-    if (!cleanId) {
+    const session = await getVerifiedUserSession();
+    if (!session) {
       return NextResponse.json(
-        { success: false, error: "idCard wajib disertakan untuk mereset tampilan user." },
-        { status: 400 }
+        {
+          success: false,
+          requiresRelogin: true,
+          error: "Akses ditolak: Anda harus login dengan ID Card untuk mereset dashboard Anda.",
+        },
+        { status: 401 }
       );
     }
 
-    const user = await prisma.user.findFirst({ where: { idCard: cleanId } });
+    const body = (await request.json().catch(() => ({}))) as { idCard?: string };
+    const cleanId = body?.idCard?.trim().toUpperCase();
+
+    if (cleanId && cleanId !== session.idCard) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Akses ditolak: Akun ${session.idCard} hanya berwenang mereset dashboard miliknya sendiri.`,
+        },
+        { status: 403 }
+      );
+    }
+
+    const user = await prisma.user.findUnique({ where: { id: session.userId } });
     if (!user) {
       return NextResponse.json(
-        { success: false, error: `Akun dengan ID Card "${cleanId}" tidak ditemukan.` },
+        { success: false, error: `Akun dengan ID Card "${session.idCard}" tidak ditemukan.` },
         { status: 404 }
       );
     }
@@ -30,7 +46,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: `Tampilan dashboard akun ${user.name} (${cleanId}) telah dipulihkan ke Default.`,
+      message: `Tampilan dashboard akun ${user.name} (${session.idCard}) telah dipulihkan ke Default.`,
     });
   } catch (err: unknown) {
     return NextResponse.json(
